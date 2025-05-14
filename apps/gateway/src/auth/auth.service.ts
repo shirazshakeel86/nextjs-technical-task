@@ -39,14 +39,13 @@ export class AuthService {
     try {
       return await firstValueFrom(
         this.authClient.send({ cmd: 'register_user' }, createUserDto).pipe(
-          timeout(5000), // 5 second timeout
+          timeout(5000),
           catchError((error) => {
             this.logger.error(
               `Error in register microservice call: ${error.message}`,
               error.stack,
             );
 
-            // Handle specific error types based on the RPC response
             if (
               error.message &&
               error.message.includes('Email is already registered')
@@ -54,14 +53,11 @@ export class AuthService {
               throw new ConflictException('Email is already registered');
             }
 
-            throw new InternalServerErrorException(
-              error.message || 'User already registered',
-            );
+            throw new InternalServerErrorException(error);
           }),
         ),
       );
     } catch (error) {
-      // If it's already a HTTP exception, just rethrow it
       if (error.status) {
         throw error;
       }
@@ -75,7 +71,7 @@ export class AuthService {
     try {
       const result = await firstValueFrom(
         this.authClient.send({ cmd: 'get_users' }, {}).pipe(
-          timeout(5000), // 5 second timeout
+          timeout(5000),
           catchError((error) => {
             this.logger.error(
               `Error in getUsers microservice call: ${error.message}`,
@@ -99,14 +95,13 @@ export class AuthService {
         this.authClient
           .send({ cmd: 'validate_user' }, { email, password })
           .pipe(
-            timeout(5000), // 5 second timeout
+            timeout(5000),
             catchError((error) => {
               this.logger.error(
                 `Error in validateUser microservice call: ${error.message}`,
                 error.stack,
               );
 
-              // Handle specific error types based on the RPC response
               if (
                 error.message &&
                 error.message.includes('Email not registered')
@@ -132,7 +127,6 @@ export class AuthService {
 
       return user;
     } catch (error) {
-      // If it's already a HTTP exception, just rethrow it
       if (error.status) {
         throw error;
       }

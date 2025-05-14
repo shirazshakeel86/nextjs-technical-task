@@ -10,7 +10,7 @@ export class UsersController {
 
   constructor(private readonly usersService: UsersService) {}
 
-  @MessagePattern('register_user')
+  @MessagePattern({ cmd: 'register_user' })
   async register(@Payload() createUserDto: CreateUserDto) {
     try {
       this.logger.log(`Registering user with email: ${createUserDto.email}`);
