@@ -20,9 +20,10 @@ export class UsersController {
         `Error registering user: ${error.message}`,
         error.stack,
       );
-      throw new RpcException(
-        error.message || 'An error occurred during registration',
-      );
+      throw new RpcException({
+        message: error.message || 'An error occurred during registration',
+        statusCode: error.status || 500,
+      });
     }
   }
 
@@ -33,9 +34,11 @@ export class UsersController {
       return await this.usersService.findAll();
     } catch (error) {
       this.logger.error(`Error getting users: ${error.message}`, error.stack);
-      throw new RpcException(
-        error.message || 'An error occurred while retrieving users',
-      );
+
+      throw new RpcException({
+        message: error.message || 'An error occurred while retrieving users',
+        statusCode: error.status || 500,
+      });
     }
   }
 
@@ -49,9 +52,11 @@ export class UsersController {
       );
     } catch (error) {
       this.logger.error(`Error validating user: ${error.message}`, error.stack);
-      throw new RpcException(
-        error.message || 'An error occurred during user validation',
-      );
+
+      throw new RpcException({
+        message: error.message || 'An error occurred during user validation',
+        statusCode: error.status || 500,
+      });
     }
   }
 }

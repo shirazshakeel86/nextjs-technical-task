@@ -8,6 +8,9 @@ import {
   HttpException,
   HttpStatus,
   Logger,
+  UnauthorizedException,
+  NotFoundException,
+  ConflictException,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { CreateUserDto, LoginDto } from '@app/common';
@@ -33,27 +36,21 @@ export class AuthController {
   @ApiOperation({ summary: 'Register a new user' })
   @ApiResponse({ status: 201, description: 'User successfully created' })
   @ApiResponse({ status: 400, description: 'Bad request' })
-  @ApiResponse({
-    status: 409,
-    description: 'User with this email already exists',
-  })
-  async register(@Body() createUserDto: CreateUserDto): Promise<any> {
+  @ApiResponse({ status: 409, description: 'Email is already registered' })
+  async register(@Body() createUserDto: CreateUserDto) {
     try {
       return await this.authService.register(createUserDto);
     } catch (error) {
       this.logger.error(`Registration error: ${error.message}`, error.stack);
 
-      // If it's already a HttpException, rethrow it
       if (error instanceof HttpException) {
         throw error;
       }
 
-      // Check if it's a conflict error from the microservice
-      if (error.message && error.message.includes('already exists')) {
-        throw new HttpException(error.message, HttpStatus.CONFLICT);
+      if (error.message && error.message.includes('already registered')) {
+        throw new ConflictException('Email is already registered');
       }
 
-      // Otherwise, throw a generic error
       throw new HttpException(
         'An error occurred during registration',
         HttpStatus.INTERNAL_SERVER_ERROR,
@@ -66,12 +63,26 @@ export class AuthController {
   @Throttle({ default: { limit: 5, ttl: 60000 } })
   @ApiOperation({ summary: 'Login with email and password' })
   @ApiResponse({ status: 200, description: 'Login successful' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
+  @ApiResponse({ status: 401, description: 'Password is invalid' })
+  @ApiResponse({ status: 404, description: 'Email not registered' })
   async login(@Request() req, @Body() loginDto: LoginDto) {
     try {
       return await this.authService.login(req.user);
     } catch (error) {
       this.logger.error(`Login error: ${error.message}`, error.stack);
+
+      if (error instanceof HttpException) {
+        throw error;
+      }
+
+      if (error.message && error.message.includes('not registered')) {
+        throw new NotFoundException('Email not registered');
+      }
+
+      if (error.message && error.message.includes('invalid')) {
+        throw new UnauthorizedException('Password is invalid');
+      }
+
       throw new HttpException(
         'An error occurred during login',
         HttpStatus.INTERNAL_SERVER_ERROR,

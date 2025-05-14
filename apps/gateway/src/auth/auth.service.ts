@@ -3,6 +3,9 @@ import {
   Injectable,
   UnauthorizedException,
   Logger,
+  NotFoundException,
+  ConflictException,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import { ClientProxy } from '@nestjs/microservices';
 import { CreateUserDto } from '@app/common';
@@ -42,19 +45,35 @@ export class AuthService {
               `Error in register microservice call: ${error.message}`,
               error.stack,
             );
-            throw error;
+
+            // Handle specific error types based on the RPC response
+            if (
+              error.message &&
+              error.message.includes('Email is already registered')
+            ) {
+              throw new ConflictException('Email is already registered');
+            }
+
+            throw new InternalServerErrorException(
+              error.message || 'User already registered',
+            );
           }),
         ),
       );
     } catch (error) {
+      // If it's already a HTTP exception, just rethrow it
+      if (error.status) {
+        throw error;
+      }
+
       this.logger.error(`Registration error: ${error.message}`, error.stack);
-      throw error;
+      throw new InternalServerErrorException('Registration failed');
     }
   }
 
   async getUsers() {
     try {
-      return await firstValueFrom(
+      const result = await firstValueFrom(
         this.authClient.send({ cmd: 'get_users' }, {}).pipe(
           timeout(5000), // 5 second timeout
           catchError((error) => {
@@ -66,6 +85,8 @@ export class AuthService {
           }),
         ),
       );
+
+      return result;
     } catch (error) {
       this.logger.error(`Get users error: ${error.message}`, error.stack);
       throw error;
@@ -84,6 +105,22 @@ export class AuthService {
                 `Error in validateUser microservice call: ${error.message}`,
                 error.stack,
               );
+
+              // Handle specific error types based on the RPC response
+              if (
+                error.message &&
+                error.message.includes('Email not registered')
+              ) {
+                throw new NotFoundException('Email not registered');
+              }
+
+              if (
+                error.message &&
+                error.message.includes('Password is invalid')
+              ) {
+                throw new UnauthorizedException('Password is invalid');
+              }
+
               throw error;
             }),
           ),
@@ -95,10 +132,12 @@ export class AuthService {
 
       return user;
     } catch (error) {
-      this.logger.error(`Validate user error: ${error.message}`, error.stack);
-      if (error instanceof UnauthorizedException) {
+      // If it's already a HTTP exception, just rethrow it
+      if (error.status) {
         throw error;
       }
+
+      this.logger.error(`Validate user error: ${error.message}`, error.stack);
       throw new UnauthorizedException(
         'An error occurred during authentication',
       );
