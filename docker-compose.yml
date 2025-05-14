@@ -1,0 +1,50 @@
+version: '3'
+
+services:
+  mongodb:
+    image: mongo:latest
+    container_name: mongodb
+    ports:
+      - '27017:27017'
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - nestjs-network
+
+  gateway:
+    build:
+      context: .
+      dockerfile: ./apps/gateway/Dockerfile
+    container_name: gateway
+    ports:
+      - '3000:3000'
+    depends_on:
+      - mongodb
+      - authentication
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017/nest-auth
+      - JWT_SECRET=your-secret-key-change-in-production
+    networks:
+      - nestjs-network
+
+  authentication:
+    build:
+      context: .
+      dockerfile: ./apps/authentication/Dockerfile
+    container_name: authentication
+    ports:
+      - '3001:3001'
+    depends_on:
+      - mongodb
+    environment:
+      - MONGODB_URI=mongodb://mongodb:27017/nest-auth
+      - JWT_SECRET=your-secret-key-change-in-production
+    networks:
+      - nestjs-network
+
+networks:
+  nestjs-network:
+    driver: bridge
+
+volumes:
+  mongodb_data:
